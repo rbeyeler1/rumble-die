@@ -1,0 +1,1539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rumble Die — The Bass Decides</title>
+  <meta name="description" content="Rumble Die is a party drinking game where bass vibrations from a Bluetooth speaker roll the die. No one rolls. The bass decides.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>🎲</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600&family=Bebas+Neue&family=Special+Elite&display=swap" rel="stylesheet">
+
+<style>
+/* ============================================
+   CSS CUSTOM PROPERTIES
+   ============================================ */
+:root {
+  --black: #0D0D0D;
+  --charcoal: #141414;
+  --dark: #1C1C1C;
+  --red: #C0392B;
+  --red-bright: #E84A3A;
+  --rust: #8B3A1A;
+  --rust-light: #B84C22;
+  --off-white: #E8E2D9;
+  --cream: #F2EDE4;
+  --mid: #6B6B6B;
+  --dim: #3A3A3A;
+  --font-display: 'Bebas Neue', sans-serif;
+  --font-label: 'Special Elite', cursive;
+  --font-body: 'Barlow Condensed', sans-serif;
+}
+
+/* ============================================
+   RESET & BASE
+   ============================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; overflow-x: hidden; }
+
+body {
+  background: var(--black);
+  color: var(--off-white);
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 1.6;
+  cursor: crosshair;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Noise texture overlay */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.035;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+}
+
+a { color: inherit; text-decoration: none; }
+img { max-width: 100%; display: block; }
+button { font-family: inherit; cursor: crosshair; border: none; background: none; }
+
+/* ============================================
+   KEYFRAME ANIMATIONS
+   ============================================ */
+@keyframes stripe-drift {
+  0% { background-position: 0 0; }
+  100% { background-position: 200px 200px; }
+}
+
+@keyframes sound-ring-pulse {
+  0% { transform: scale(0.5); opacity: 0.6; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+@keyframes sound-ring-pulse-sm {
+  0% { transform: scale(0.8); opacity: 0.4; }
+  100% { transform: scale(2); opacity: 0; }
+}
+
+@keyframes drip {
+  0%, 100% { height: 12px; }
+  50% { height: 28px; }
+}
+
+@keyframes die-vibrate {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  25% { transform: translate(-1.5px, -2px) rotate(-1.5deg); }
+  50% { transform: translate(1px, -1px) rotate(1deg); }
+  75% { transform: translate(-0.5px, -2.5px) rotate(-0.5deg); }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-shadow {
+  0%, 100% { filter: drop-shadow(0 0 20px rgba(232, 74, 58, 0.3)); }
+  50% { filter: drop-shadow(0 0 40px rgba(232, 74, 58, 0.6)); }
+}
+
+@keyframes hero-glow {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.7; }
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+.reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+  will-change: transform, opacity;
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.section-label {
+  font-family: var(--font-label);
+  font-size: 11px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--rust-light);
+  margin-bottom: 8px;
+}
+
+.section-wrap {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 100px 24px;
+}
+
+/* ============================================
+   NAVIGATION
+   ============================================ */
+.nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 32px;
+  background: linear-gradient(180deg, rgba(13,13,13,0.95) 0%, transparent 100%);
+}
+
+.nav-logo {
+  font-family: var(--font-display);
+  font-size: 28px;
+  letter-spacing: 3px;
+  line-height: 1;
+}
+.nav-logo .die { color: var(--red-bright); }
+.nav-logo .rumble { color: var(--cream); }
+
+.nav-links {
+  display: flex;
+  gap: 32px;
+  list-style: none;
+}
+.nav-links a {
+  font-family: var(--font-label);
+  font-size: 11px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--mid);
+  transition: color 0.2s ease;
+}
+.nav-links a:hover { color: var(--cream); }
+
+.hamburger {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  padding: 4px;
+}
+.hamburger span {
+  display: block;
+  width: 24px;
+  height: 2px;
+  background: var(--cream);
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+.hamburger.active span:nth-child(1) { transform: rotate(45deg) translate(5px, 5px); }
+.hamburger.active span:nth-child(2) { opacity: 0; }
+.hamburger.active span:nth-child(3) { transform: rotate(-45deg) translate(5px, -5px); }
+
+@media (max-width: 768px) {
+  .hamburger { display: flex; }
+  .nav-links {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    flex-direction: column;
+    background: rgba(13,13,13,0.97);
+    padding: 24px 32px;
+    gap: 20px;
+    display: none;
+  }
+  .nav-links.open { display: flex; }
+}
+
+/* ============================================
+   HERO SECTION
+   ============================================ */
+.hero {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  overflow: hidden;
+  padding: 80px 24px 120px;
+}
+
+/* Diagonal stripe background */
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: -50%;
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 10px,
+    rgba(139, 58, 26, 0.06) 10px,
+    rgba(139, 58, 26, 0.06) 20px
+  );
+  animation: stripe-drift 30s linear infinite;
+  will-change: background-position;
+  z-index: 0;
+}
+
+/* Radial red glow */
+.hero-glow {
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(192, 57, 43, 0.25) 0%, transparent 70%);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -55%);
+  animation: hero-glow 4s ease-in-out infinite;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+}
+
+/* Logo placeholder SVG */
+.hero-logo {
+  width: 240px;
+  height: 240px;
+  margin: 0 auto 32px;
+  animation: pulse-shadow 3s ease-in-out infinite;
+  opacity: 0;
+  transform: translateY(30px);
+  animation: pulse-shadow 3s ease-in-out infinite, fade-up 0.8s ease forwards;
+  animation-delay: 0s, 0.1s;
+}
+
+.hero-headline {
+  font-family: var(--font-display);
+  font-size: clamp(80px, 16vw, 180px);
+  line-height: 0.85;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+  opacity: 0;
+  animation: fade-up 0.8s ease forwards;
+  animation-delay: 0.3s;
+}
+.hero-headline .die-text { color: var(--red-bright); }
+.hero-headline .rumble-text { color: var(--cream); }
+
+/* Drip element */
+.hero-drip {
+  width: 3px;
+  height: 12px;
+  background: var(--red);
+  margin: 0 auto 16px;
+  border-radius: 0 0 2px 2px;
+  animation: drip 2s ease-in-out infinite, fade-up 0.8s ease forwards;
+  animation-delay: 0s, 0.4s;
+  opacity: 0;
+}
+
+.hero-tagline {
+  font-family: var(--font-display);
+  font-size: clamp(20px, 3vw, 36px);
+  letter-spacing: 3px;
+  margin-bottom: 40px;
+  opacity: 0;
+  animation: fade-up 0.8s ease forwards;
+  animation-delay: 0.5s;
+}
+.hero-tagline .muted { color: var(--mid); }
+
+.hero-ctas {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+  opacity: 0;
+  animation: fade-up 0.8s ease forwards;
+  animation-delay: 0.7s;
+}
+
+.btn-primary {
+  font-family: var(--font-label);
+  font-size: 12px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  padding: 14px 32px;
+  background: var(--red);
+  color: var(--cream);
+  border: 2px solid var(--red);
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.btn-primary:hover {
+  background: var(--red-bright);
+  border-color: var(--red-bright);
+}
+
+.btn-ghost {
+  font-family: var(--font-label);
+  font-size: 12px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  padding: 14px 32px;
+  background: transparent;
+  color: var(--cream);
+  border: 2px solid var(--dim);
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+.btn-ghost:hover {
+  border-color: var(--rust-light);
+  color: var(--rust-light);
+}
+
+/* Sound rings at hero bottom */
+.hero-rings {
+  position: absolute;
+  bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 0;
+  pointer-events: none;
+}
+.hero-rings .ring {
+  position: absolute;
+  border: 1px solid rgba(192, 57, 43, 0.3);
+  border-radius: 50%;
+  width: 80px;
+  height: 80px;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) scale(0.5);
+  animation: sound-ring-pulse 3s ease-out infinite;
+}
+.hero-rings .ring:nth-child(2) { animation-delay: 1s; }
+.hero-rings .ring:nth-child(3) { animation-delay: 2s; }
+
+/* ============================================
+   THE MECHANIC SECTION
+   ============================================ */
+.mechanic {
+  background: var(--charcoal);
+  position: relative;
+}
+
+.mechanic-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 60px;
+  align-items: center;
+}
+
+.mechanic-visual {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+}
+
+/* Speaker SVG container */
+.speaker-container {
+  position: relative;
+  width: 280px;
+  height: 280px;
+}
+
+.speaker-svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Die on top of speaker */
+.die-on-speaker {
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 56px;
+  height: 56px;
+  animation: die-vibrate 0.4s ease-in-out infinite alternate;
+  will-change: transform;
+  cursor: pointer;
+  z-index: 2;
+}
+
+/* Sound rings around speaker */
+.speaker-rings {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.speaker-rings .ring {
+  position: absolute;
+  border: 1px solid rgba(192, 57, 43, 0.2);
+  border-radius: 50%;
+  width: 280px;
+  height: 280px;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) scale(0.8);
+  animation: sound-ring-pulse-sm 3s ease-out infinite;
+}
+.speaker-rings .ring:nth-child(2) { animation-delay: 1s; }
+.speaker-rings .ring:nth-child(3) { animation-delay: 2s; }
+
+.mechanic-text h2 {
+  font-family: var(--font-display);
+  font-size: clamp(40px, 6vw, 72px);
+  letter-spacing: 3px;
+  line-height: 0.95;
+  text-transform: uppercase;
+  color: var(--cream);
+  margin-bottom: 20px;
+}
+.mechanic-text h2 span { color: var(--red-bright); }
+
+.mechanic-text p {
+  font-size: 17px;
+  line-height: 1.7;
+  color: var(--off-white);
+  margin-bottom: 24px;
+  max-width: 480px;
+}
+
+.stats-row {
+  display: flex;
+  gap: 40px;
+  margin-top: 32px;
+}
+.stat {
+  text-align: center;
+}
+.stat-num {
+  font-family: var(--font-display);
+  font-size: 40px;
+  color: var(--cream);
+  line-height: 1;
+}
+.stat-label {
+  font-family: var(--font-label);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--rust-light);
+  margin-top: 4px;
+}
+
+/* Die tooltip */
+.die-tooltip {
+  position: absolute;
+  top: -90px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--dark);
+  border: 1px solid var(--dim);
+  padding: 8px 14px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--off-white);
+  white-space: nowrap;
+  border-radius: 2px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  z-index: 10;
+}
+.die-tooltip.show { opacity: 1; }
+
+@media (max-width: 768px) {
+  .mechanic-grid {
+    grid-template-columns: 1fr;
+    gap: 40px;
+    text-align: center;
+  }
+  .mechanic-text p { max-width: 100%; }
+  .stats-row { justify-content: center; }
+  .mechanic-visual { min-height: 300px; }
+}
+
+/* ============================================
+   HOW TO PLAY SECTION
+   ============================================ */
+.how-to-play {
+  background: var(--black);
+}
+
+.how-to-play .section-heading {
+  font-family: var(--font-display);
+  font-size: clamp(40px, 6vw, 72px);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--cream);
+  text-align: center;
+  margin-bottom: 60px;
+}
+
+/* 4a. Setup Cards */
+.setup-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-bottom: 80px;
+}
+
+.setup-card {
+  background: var(--dark);
+  padding: 40px 28px 32px;
+  position: relative;
+  overflow: hidden;
+  border-bottom: 2px solid var(--dim);
+  transition: border-color 0.2s ease, transform 0.15s ease;
+}
+.setup-card:hover {
+  border-color: var(--rust);
+  transform: translateY(-2px);
+}
+
+.setup-card .ghost-num {
+  position: absolute;
+  top: -10px;
+  right: 10px;
+  font-family: var(--font-display);
+  font-size: 120px;
+  color: var(--dim);
+  opacity: 0.15;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.setup-card h3 {
+  font-family: var(--font-display);
+  font-size: 28px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--cream);
+  margin-bottom: 12px;
+}
+
+.setup-card p {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--off-white);
+}
+
+/* 4b. Roll Cards */
+.rolls-heading {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 4vw, 48px);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--cream);
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.rolls-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 80px;
+}
+
+.roll-card {
+  background: var(--dark);
+  padding: 32px 28px;
+  border-left: 3px solid var(--dim);
+  position: relative;
+  transition: border-color 0.2s ease, transform 0.15s ease;
+}
+.roll-card:hover {
+  transform: translateY(-2px);
+}
+
+.roll-card.roll-6 { border-left-color: var(--red-bright); }
+.roll-card.roll-duel { border-left-color: var(--rust); }
+.roll-card.roll-5 {
+  grid-column: 1 / -1;
+  border-left-color: var(--red);
+  background: linear-gradient(135deg, var(--dark) 0%, rgba(139, 58, 26, 0.08) 100%);
+}
+
+.roll-number {
+  font-family: var(--font-display);
+  font-size: 48px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+.roll-6 .roll-number { color: var(--red-bright); }
+.roll-duel .roll-number { color: var(--cream); }
+.roll-5 .roll-number { color: var(--rust-light); }
+
+.roll-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.roll-name {
+  font-family: var(--font-display);
+  font-size: 24px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--cream);
+}
+
+.roll-tag {
+  font-family: var(--font-label);
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 2px;
+}
+.tag-red { background: rgba(192, 57, 43, 0.25); color: var(--red-bright); border: 1px solid rgba(192, 57, 43, 0.4); }
+.tag-rust { background: rgba(139, 58, 26, 0.2); color: var(--rust-light); border: 1px solid rgba(139, 58, 26, 0.35); }
+.tag-danger { background: rgba(192, 57, 43, 0.15); color: var(--red-bright); border: 1px solid var(--rust); }
+
+.roll-card p, .roll-card ul {
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--off-white);
+}
+.roll-card ul {
+  list-style: none;
+  padding: 0;
+}
+.roll-card ul li {
+  padding-left: 16px;
+  position: relative;
+  margin-bottom: 6px;
+}
+.roll-card ul li::before {
+  content: '—';
+  position: absolute;
+  left: 0;
+  color: var(--rust-light);
+}
+
+/* 4c. Flip-Off Rules */
+.flipoff-box {
+  background: var(--charcoal);
+  border: 1px dashed var(--rust);
+  padding: 48px 40px;
+  margin-bottom: 80px;
+  position: relative;
+  overflow: hidden;
+}
+
+.flipoff-watermark {
+  position: absolute;
+  font-family: var(--font-display);
+  font-size: clamp(80px, 14vw, 160px);
+  color: var(--dim);
+  opacity: 0.07;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-8deg);
+  letter-spacing: 8px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.flipoff-box h3 {
+  font-family: var(--font-display);
+  font-size: 40px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--cream);
+  margin-bottom: 4px;
+  position: relative;
+  z-index: 1;
+}
+
+.flipoff-box .flipoff-sub {
+  font-family: var(--font-label);
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--rust-light);
+  margin-bottom: 32px;
+  position: relative;
+  z-index: 1;
+}
+
+.flipoff-steps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  position: relative;
+  z-index: 1;
+}
+
+.flipoff-step {
+  text-align: center;
+}
+
+.flipoff-step-num {
+  font-family: var(--font-display);
+  font-size: 36px;
+  color: var(--rust-light);
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.flipoff-step p {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--off-white);
+}
+
+.flipoff-timer-wrap {
+  text-align: center;
+  margin-top: 32px;
+  position: relative;
+  z-index: 1;
+}
+
+.flipoff-timer-btn {
+  font-family: var(--font-label);
+  font-size: 11px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  padding: 12px 28px;
+  background: transparent;
+  color: var(--rust-light);
+  border: 1px solid var(--rust);
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+.flipoff-timer-btn:hover {
+  color: var(--red-bright);
+  border-color: var(--red-bright);
+}
+.flipoff-timer-btn.counting {
+  color: var(--red-bright);
+  border-color: var(--red-bright);
+  pointer-events: none;
+}
+
+/* 4d. Win Condition */
+.win-card {
+  background: var(--red);
+  padding: 48px 40px;
+  margin-bottom: 80px;
+  position: relative;
+  overflow: hidden;
+  text-align: center;
+}
+
+.win-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 8px,
+    rgba(0, 0, 0, 0.1) 8px,
+    rgba(0, 0, 0, 0.1) 16px
+  );
+  pointer-events: none;
+}
+
+.win-cards-fan {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 28px;
+  position: relative;
+  z-index: 1;
+}
+
+.win-playing-card {
+  width: 56px;
+  height: 78px;
+  background: var(--cream);
+  color: var(--black);
+  font-family: var(--font-display);
+  font-size: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  transition: transform 0.2s ease;
+}
+.win-playing-card:nth-child(1) { transform: rotate(-8deg); }
+.win-playing-card:nth-child(2) { transform: rotate(-3deg); }
+.win-playing-card:nth-child(3) { transform: rotate(3deg); }
+.win-playing-card:nth-child(4) { transform: rotate(8deg); }
+
+.win-card h3 {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 4vw, 48px);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--cream);
+  margin-bottom: 12px;
+  position: relative;
+  z-index: 1;
+}
+
+.win-card p {
+  font-size: 16px;
+  line-height: 1.7;
+  color: rgba(242, 237, 228, 0.9);
+  max-width: 540px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+}
+
+/* 4e. Roll of 5 Danger Strip */
+.danger-strip {
+  background: linear-gradient(135deg, rgba(13,13,13,1) 0%, rgba(139,58,26,0.08) 100%);
+  border-left: 3px solid var(--red);
+  padding: 48px 40px;
+  position: relative;
+  overflow: hidden;
+}
+
+.danger-ghost {
+  position: absolute;
+  right: 40px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--font-display);
+  font-size: clamp(120px, 20vw, 240px);
+  color: var(--dim);
+  opacity: 0.06;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.danger-strip h3 {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 4vw, 48px);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--red-bright);
+  margin-bottom: 16px;
+  position: relative;
+  z-index: 1;
+}
+
+.danger-strip p {
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--off-white);
+  max-width: 600px;
+  position: relative;
+  z-index: 1;
+}
+
+/* ============================================
+   EQUIPMENT SECTION
+   ============================================ */
+.equipment {
+  background: var(--charcoal);
+}
+
+.equipment .section-heading {
+  font-family: var(--font-display);
+  font-size: clamp(40px, 6vw, 72px);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--cream);
+  text-align: center;
+  margin-bottom: 48px;
+}
+
+.equip-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 24px;
+  margin-bottom: 48px;
+}
+
+.equip-item {
+  text-align: center;
+  padding: 28px 16px;
+  border-bottom: 2px solid transparent;
+  transition: transform 0.15s ease, border-color 0.2s ease;
+}
+.equip-item:hover {
+  transform: translateY(-3px);
+  border-bottom-color: var(--rust);
+}
+
+.equip-icon {
+  font-size: 40px;
+  margin-bottom: 16px;
+  line-height: 1;
+}
+
+.equip-icon svg {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto;
+}
+
+.equip-name {
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--cream);
+  margin-bottom: 4px;
+}
+
+.equip-qty {
+  font-family: var(--font-label);
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--rust-light);
+}
+
+.no-speaker-box {
+  background: var(--dark);
+  border-left: 3px dashed var(--rust);
+  padding: 24px 28px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.no-speaker-box h4 {
+  font-family: var(--font-display);
+  font-size: 22px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--cream);
+  margin-bottom: 8px;
+}
+
+.no-speaker-box p {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--mid);
+}
+
+@media (max-width: 768px) {
+  .equip-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .equip-grid .equip-item:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ============================================
+   FOOTER
+   ============================================ */
+.footer {
+  border-top: 1px solid var(--dim);
+  padding: 60px 24px 40px;
+  text-align: center;
+}
+
+.footer-logo {
+  font-family: var(--font-display);
+  font-size: 48px;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--cream);
+  margin-bottom: 12px;
+}
+.footer-logo .die { color: var(--red-bright); }
+
+.footer-tagline {
+  font-family: var(--font-label);
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--mid);
+  margin-bottom: 20px;
+}
+
+.footer-legal {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--dim);
+  line-height: 1.5;
+}
+
+/* ============================================
+   RESPONSIVE — GLOBAL
+   ============================================ */
+@media (max-width: 768px) {
+  .section-wrap { padding: 60px 20px; }
+  .setup-grid { grid-template-columns: 1fr; }
+  .rolls-grid { grid-template-columns: 1fr; }
+  .roll-card.roll-5 { grid-column: auto; }
+  .flipoff-steps { grid-template-columns: repeat(2, 1fr); }
+  .flipoff-box { padding: 32px 24px; }
+  .win-card { padding: 32px 24px; }
+  .danger-strip { padding: 32px 24px; }
+}
+
+@media (max-width: 480px) {
+  .flipoff-steps { grid-template-columns: 1fr; }
+  .hero { padding: 60px 16px 100px; }
+}
+</style>
+</head>
+
+<body>
+
+<!-- ============================================
+     NAVIGATION
+     ============================================ -->
+<nav class="nav">
+  <a href="#" class="nav-logo"><span class="rumble">RUMBLE</span> <span class="die">DIE</span></a>
+  <button class="hamburger" aria-label="Toggle navigation">
+    <span></span><span></span><span></span>
+  </button>
+  <ul class="nav-links">
+    <li><a href="#mechanic">The Mechanic</a></li>
+    <li><a href="#how-to-play">How to Play</a></li>
+    <li><a href="#equipment">Equipment</a></li>
+  </ul>
+</nav>
+
+<!-- ============================================
+     HERO SECTION
+     ============================================ -->
+<section class="hero" id="hero">
+  <div class="hero-glow"></div>
+
+  <div class="hero-content">
+    <!-- Inline SVG Logo: Red Solo Cup with Speaker in circular distressed badge -->
+    <div class="hero-logo">
+      <svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg" aria-label="Rumble Die logo — red Solo cup with speaker">
+        <!-- Outer distressed circle -->
+        <circle cx="120" cy="120" r="112" fill="none" stroke="#8B3A1A" stroke-width="3" stroke-dasharray="6 4" opacity="0.7"/>
+        <circle cx="120" cy="120" r="105" fill="none" stroke="#C0392B" stroke-width="2" opacity="0.5"/>
+        <!-- Inner dark fill -->
+        <circle cx="120" cy="120" r="100" fill="#1C1C1C"/>
+        <!-- Solo cup body -->
+        <path d="M88 85 L78 190 Q78 196 84 196 L156 196 Q162 196 162 190 L152 85 Z" fill="#C0392B" opacity="0.9"/>
+        <!-- Cup rim -->
+        <rect x="84" y="80" width="72" height="8" rx="2" fill="#E84A3A"/>
+        <!-- Cup ridges -->
+        <line x1="86" y1="110" x2="154" y2="110" stroke="#8B3A1A" stroke-width="1" opacity="0.6"/>
+        <line x1="84" y1="140" x2="156" y2="140" stroke="#8B3A1A" stroke-width="1" opacity="0.6"/>
+        <!-- Speaker cone in top of cup -->
+        <circle cx="120" cy="68" r="24" fill="#1C1C1C" stroke="#3A3A3A" stroke-width="2"/>
+        <circle cx="120" cy="68" r="18" fill="none" stroke="#6B6B6B" stroke-width="1" opacity="0.5"/>
+        <circle cx="120" cy="68" r="12" fill="none" stroke="#6B6B6B" stroke-width="1" opacity="0.4"/>
+        <circle cx="120" cy="68" r="6" fill="#3A3A3A"/>
+        <circle cx="120" cy="68" r="3" fill="#6B6B6B"/>
+        <!-- Distressed dots around badge -->
+        <circle cx="120" cy="18" r="2" fill="#8B3A1A" opacity="0.4"/>
+        <circle cx="155" cy="25" r="1.5" fill="#8B3A1A" opacity="0.3"/>
+        <circle cx="85" cy="25" r="1.5" fill="#8B3A1A" opacity="0.3"/>
+        <circle cx="180" cy="50" r="2" fill="#8B3A1A" opacity="0.35"/>
+        <circle cx="60" cy="50" r="2" fill="#8B3A1A" opacity="0.35"/>
+        <!-- Badge text arc — "RUMBLE DIE" -->
+        <text font-family="'Bebas Neue', sans-serif" font-size="14" fill="#E8E2D9" letter-spacing="4" text-anchor="middle">
+          <textPath href="#badge-arc" startOffset="50%">RUMBLE DIE</textPath>
+        </text>
+        <defs>
+          <path id="badge-arc" d="M45,200 Q120,230 195,200" fill="none"/>
+        </defs>
+      </svg>
+    </div>
+
+    <h1 class="hero-headline">
+      <span class="rumble-text">RUMBLE</span><br>
+      <span class="die-text">DIE</span>
+    </h1>
+    <div class="hero-drip"></div>
+    <p class="hero-tagline">
+      <span class="muted">No one rolls.</span> The bass decides.
+    </p>
+    <div class="hero-ctas">
+      <a href="#how-to-play" class="btn-primary">How to Play</a>
+      <a href="#mechanic" class="btn-ghost">The Mechanic</a>
+    </div>
+  </div>
+
+  <div class="hero-rings">
+    <div class="ring"></div>
+    <div class="ring"></div>
+    <div class="ring"></div>
+  </div>
+</section>
+
+<!-- ============================================
+     THE MECHANIC SECTION
+     ============================================ -->
+<section class="mechanic" id="mechanic">
+  <div class="section-wrap">
+    <div class="mechanic-grid">
+      <div class="mechanic-visual">
+        <div class="speaker-container">
+          <!-- Sound rings -->
+          <div class="speaker-rings">
+            <div class="ring"></div>
+            <div class="ring"></div>
+            <div class="ring"></div>
+          </div>
+
+          <!-- Die on speaker -->
+          <div class="die-on-speaker" id="die-roller" title="Click to roll">
+            <svg viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg" aria-label="Die showing four pips">
+              <rect x="2" y="2" width="52" height="52" rx="8" fill="#F2EDE4" stroke="#E8E2D9" stroke-width="1"/>
+              <!-- 4 pips (2x2) -->
+              <circle cx="17" cy="17" r="5" fill="#C0392B"/>
+              <circle cx="39" cy="17" r="5" fill="#C0392B"/>
+              <circle cx="17" cy="39" r="5" fill="#C0392B"/>
+              <circle cx="39" cy="39" r="5" fill="#C0392B"/>
+            </svg>
+            <div class="die-tooltip" id="die-tooltip"></div>
+          </div>
+
+          <!-- Speaker SVG -->
+          <svg class="speaker-svg" viewBox="0 0 280 280" xmlns="http://www.w3.org/2000/svg" aria-label="Bluetooth speaker">
+            <!-- Speaker body -->
+            <circle cx="140" cy="140" r="130" fill="#1C1C1C" stroke="#3A3A3A" stroke-width="2"/>
+            <circle cx="140" cy="140" r="120" fill="#141414" stroke="#3A3A3A" stroke-width="1"/>
+            <!-- Grille pattern (dots) -->
+            <g fill="#3A3A3A" opacity="0.4">
+              <circle cx="100" cy="80" r="2"/><circle cx="120" cy="80" r="2"/><circle cx="140" cy="80" r="2"/><circle cx="160" cy="80" r="2"/><circle cx="180" cy="80" r="2"/>
+              <circle cx="90" cy="96" r="2"/><circle cx="110" cy="96" r="2"/><circle cx="130" cy="96" r="2"/><circle cx="150" cy="96" r="2"/><circle cx="170" cy="96" r="2"/><circle cx="190" cy="96" r="2"/>
+              <circle cx="80" cy="112" r="2"/><circle cx="100" cy="112" r="2"/><circle cx="120" cy="112" r="2"/><circle cx="160" cy="112" r="2"/><circle cx="180" cy="112" r="2"/><circle cx="200" cy="112" r="2"/>
+              <circle cx="80" cy="128" r="2"/><circle cx="100" cy="128" r="2"/><circle cx="180" cy="128" r="2"/><circle cx="200" cy="128" r="2"/>
+              <circle cx="80" cy="144" r="2"/><circle cx="100" cy="144" r="2"/><circle cx="180" cy="144" r="2"/><circle cx="200" cy="144" r="2"/>
+              <circle cx="80" cy="160" r="2"/><circle cx="100" cy="160" r="2"/><circle cx="180" cy="160" r="2"/><circle cx="200" cy="160" r="2"/>
+              <circle cx="80" cy="176" r="2"/><circle cx="100" cy="176" r="2"/><circle cx="120" cy="176" r="2"/><circle cx="160" cy="176" r="2"/><circle cx="180" cy="176" r="2"/><circle cx="200" cy="176" r="2"/>
+              <circle cx="90" cy="192" r="2"/><circle cx="110" cy="192" r="2"/><circle cx="130" cy="192" r="2"/><circle cx="150" cy="192" r="2"/><circle cx="170" cy="192" r="2"/><circle cx="190" cy="192" r="2"/>
+              <circle cx="100" cy="208" r="2"/><circle cx="120" cy="208" r="2"/><circle cx="140" cy="208" r="2"/><circle cx="160" cy="208" r="2"/><circle cx="180" cy="208" r="2"/>
+            </g>
+            <!-- Concentric speaker rings -->
+            <circle cx="140" cy="140" r="60" fill="none" stroke="#6B6B6B" stroke-width="1.5" opacity="0.3"/>
+            <circle cx="140" cy="140" r="42" fill="none" stroke="#6B6B6B" stroke-width="1" opacity="0.25"/>
+            <circle cx="140" cy="140" r="26" fill="none" stroke="#6B6B6B" stroke-width="1" opacity="0.2"/>
+            <!-- Central dome -->
+            <circle cx="140" cy="140" r="14" fill="#3A3A3A"/>
+            <circle cx="140" cy="140" r="8" fill="#6B6B6B" opacity="0.5"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="mechanic-text reveal">
+        <p class="section-label">The Core Mechanic</p>
+        <h2>The Speaker<br><span>Runs the Game</span></h2>
+        <p>The die rests on a Bluetooth speaker. The music plays. The bass hits. The die moves. No one touches it. No one rolls it. The vibration decides where it lands.</p>
+        <p>Every roll is out of everyone's control. That's the point. The speaker is the game master.</p>
+        <div class="stats-row">
+          <div class="stat">
+            <div class="stat-num">3+</div>
+            <div class="stat-label">Players</div>
+          </div>
+          <div class="stat">
+            <div class="stat-num">4</div>
+            <div class="stat-label">Cards to Win</div>
+          </div>
+          <div class="stat">
+            <div class="stat-num">6</div>
+            <div class="stat-label">Faces. One Rule Each.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================
+     HOW TO PLAY SECTION
+     ============================================ -->
+<section class="how-to-play" id="how-to-play">
+  <div class="section-wrap">
+    <p class="section-label" style="text-align:center;">Learn the Rules</p>
+    <h2 class="section-heading reveal">How to Play</h2>
+
+    <!-- 4a. Setup Cards -->
+    <div class="setup-grid">
+      <div class="setup-card reveal">
+        <span class="ghost-num">1</span>
+        <h3>Set Up</h3>
+        <p>Place all four numbered cards (1&ndash;4) in a central pool on the table. Put the die on top of the Bluetooth speaker. Fill your cups.</p>
+      </div>
+      <div class="setup-card reveal">
+        <span class="ghost-num">2</span>
+        <h3>Hit Play</h3>
+        <p>Start the music. The bass vibrates the die. Players take turns clockwise &mdash; read whatever face the die settles on.</p>
+      </div>
+      <div class="setup-card reveal">
+        <span class="ghost-num">3</span>
+        <h3>Fight for Cards</h3>
+        <p>Win cards through flip-off duels. Steal them. Defend them. First player to hold all four cards at the same time wins.</p>
+      </div>
+    </div>
+
+    <!-- 4b. What Each Roll Means -->
+    <h3 class="rolls-heading reveal">What Each Roll Means</h3>
+    <div class="rolls-grid">
+      <div class="roll-card roll-6 reveal">
+        <div class="roll-number">6</div>
+        <div class="roll-header">
+          <span class="roll-name">Group Flip-Off</span>
+          <span class="roll-tag tag-red">All In</span>
+        </div>
+        <p>Everyone does a flip-off &mdash; a group flip cup duel. If cards remain in the pool, the winner picks any card from it. If the pool is empty, the winner steals any card from any player of their choice.</p>
+      </div>
+
+      <div class="roll-card roll-duel reveal">
+        <div class="roll-number">1&ndash;4</div>
+        <div class="roll-header">
+          <span class="roll-name">Card Duel</span>
+          <span class="roll-tag tag-rust">Duel</span>
+        </div>
+        <ul>
+          <li>Another player holds that card &rarr; challenge them to a flip-off. Winner keeps the card.</li>
+          <li>You hold that card &rarr; you choose any player to challenge you. Winner keeps the card.</li>
+          <li>The card is still in the pool &rarr; nothing happens. Play moves on.</li>
+        </ul>
+      </div>
+
+      <div class="roll-card roll-5 reveal">
+        <div class="roll-number">5</div>
+        <div class="roll-header">
+          <span class="roll-name">Total Wipe</span>
+          <span class="roll-tag tag-danger">Danger</span>
+        </div>
+        <p>Roll a 5 and you lose every card you're holding. All of them go back to the center pool. No exceptions. No leads are safe.</p>
+      </div>
+    </div>
+
+    <!-- 4c. The Flip-Off Rules -->
+    <div class="flipoff-box reveal">
+      <div class="flipoff-watermark">FLIP-OFF</div>
+      <h3>The Flip-Off</h3>
+      <p class="flipoff-sub">Head-to-head flip cup duel &mdash; how every card is won</p>
+      <div class="flipoff-steps">
+        <div class="flipoff-step">
+          <div class="flipoff-step-num">1</div>
+          <p>Fill your cup with one shot of beer.</p>
+        </div>
+        <div class="flipoff-step">
+          <div class="flipoff-step-num">2</div>
+          <p>On go, drink completely. Nothing left in the cup.</p>
+        </div>
+        <div class="flipoff-step">
+          <div class="flipoff-step-num">3</div>
+          <p>Place cup face-down on the table edge. Flip it upright with one hand only.</p>
+        </div>
+        <div class="flipoff-step">
+          <div class="flipoff-step-num">4</div>
+          <p>First to land wins. Ties are re-flipped. No mercy.</p>
+        </div>
+      </div>
+      <div class="flipoff-timer-wrap">
+        <button class="flipoff-timer-btn" id="flipoff-timer">Start Countdown</button>
+      </div>
+    </div>
+
+    <!-- 4d. Win Condition -->
+    <div class="win-card reveal">
+      <div class="win-cards-fan">
+        <div class="win-playing-card">1</div>
+        <div class="win-playing-card">2</div>
+        <div class="win-playing-card">3</div>
+        <div class="win-playing-card">4</div>
+      </div>
+      <h3>Collect All Four. Win the Game.</h3>
+      <p>Hold cards 1, 2, 3, and 4 at the same time. Not over time &mdash; simultaneously. A roll of 5 wipes your hand. No lead is safe until the last card is flipped.</p>
+    </div>
+
+    <!-- 4e. Roll of 5 Danger Strip -->
+    <div class="danger-strip reveal">
+      <div class="danger-ghost">5</div>
+      <h3>Never Get Comfortable.</h3>
+      <p>The 5 exists to destroy complacency. You can be holding three cards, one flip-off away from winning, and the bass settles on 5. Everything goes back to the pool. That's why no one relaxes. That's why people keep playing.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================
+     EQUIPMENT SECTION
+     ============================================ -->
+<section class="equipment" id="equipment">
+  <div class="section-wrap">
+    <p class="section-label" style="text-align:center;">What You Need</p>
+    <h2 class="section-heading reveal">Equipment</h2>
+
+    <div class="equip-grid">
+      <div class="equip-item reveal">
+        <div class="equip-icon">
+          <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" aria-label="Die">
+            <rect x="4" y="4" width="40" height="40" rx="6" fill="none" stroke="#E8E2D9" stroke-width="2"/>
+            <circle cx="16" cy="16" r="3" fill="#C0392B"/>
+            <circle cx="32" cy="16" r="3" fill="#C0392B"/>
+            <circle cx="24" cy="24" r="3" fill="#C0392B"/>
+            <circle cx="16" cy="32" r="3" fill="#C0392B"/>
+            <circle cx="32" cy="32" r="3" fill="#C0392B"/>
+          </svg>
+        </div>
+        <div class="equip-name">Six-Sided Die</div>
+        <div class="equip-qty">&times; 1</div>
+      </div>
+
+      <div class="equip-item reveal">
+        <div class="equip-icon">
+          <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" aria-label="Numbered cards">
+            <rect x="6" y="4" width="28" height="40" rx="3" fill="none" stroke="#E8E2D9" stroke-width="2"/>
+            <rect x="14" y="8" width="28" height="40" rx="3" fill="none" stroke="#E8E2D9" stroke-width="1.5" opacity="0.5"/>
+            <text x="20" y="32" font-family="'Bebas Neue', sans-serif" font-size="18" fill="#E8E2D9">1-4</text>
+          </svg>
+        </div>
+        <div class="equip-name">Numbered Cards</div>
+        <div class="equip-qty">&times; 4 (1&ndash;4)</div>
+      </div>
+
+      <div class="equip-item reveal">
+        <div class="equip-icon">
+          <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" aria-label="Bluetooth speaker">
+            <circle cx="24" cy="24" r="18" fill="none" stroke="#E8E2D9" stroke-width="2"/>
+            <circle cx="24" cy="24" r="10" fill="none" stroke="#E8E2D9" stroke-width="1" opacity="0.5"/>
+            <circle cx="24" cy="24" r="4" fill="#C0392B"/>
+          </svg>
+        </div>
+        <div class="equip-name">BT Speaker</div>
+        <div class="equip-qty">&times; 1 &mdash; With Bass</div>
+      </div>
+
+      <div class="equip-item reveal">
+        <div class="equip-icon">
+          <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" aria-label="Solo cup">
+            <path d="M14 8 L12 40 Q12 44 16 44 L32 44 Q36 44 36 40 L34 8 Z" fill="none" stroke="#E8E2D9" stroke-width="2"/>
+            <line x1="13" y1="18" x2="35" y2="18" stroke="#E8E2D9" stroke-width="1" opacity="0.4"/>
+          </svg>
+        </div>
+        <div class="equip-name">Solo Cups</div>
+        <div class="equip-qty">&times; 1 Per Player</div>
+      </div>
+
+      <div class="equip-item reveal">
+        <div class="equip-icon">
+          <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" aria-label="Beer">
+            <rect x="12" y="8" width="20" height="36" rx="3" fill="none" stroke="#E8E2D9" stroke-width="2"/>
+            <rect x="14" y="22" width="16" height="20" rx="2" fill="#C0392B" opacity="0.3"/>
+            <path d="M32 16 L38 16 L38 28 L32 28" fill="none" stroke="#E8E2D9" stroke-width="1.5" opacity="0.5"/>
+          </svg>
+        </div>
+        <div class="equip-name">Beer</div>
+        <div class="equip-qty">Plenty of It</div>
+      </div>
+    </div>
+
+    <div class="no-speaker-box reveal">
+      <h4>No Speaker?</h4>
+      <p>You can roll the die by hand. But that's a fallback. The speaker mechanic is the whole point. The bass decides, not your wrist. Get a speaker.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================
+     FOOTER
+     ============================================ -->
+<footer class="footer">
+  <div class="footer-logo"><span>RUMBLE </span><span class="die">DIE</span></div>
+  <p class="footer-tagline">The bass decides &middot; Ages 21+ &middot; Play responsibly</p>
+  <p class="footer-legal">Rumble Die is intended for adults aged 21 and over. Please drink responsibly.</p>
+</footer>
+
+<!-- ============================================
+     JAVASCRIPT
+     ============================================ -->
+<script>
+(function() {
+  'use strict';
+
+  /* ---- Scroll Reveal (IntersectionObserver) ---- */
+  const reveals = document.querySelectorAll('.reveal');
+  const observer = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) {
+        const el = entry.target;
+        el.classList.add('visible');
+        // Stagger children if parent has stagger class
+        const children = el.querySelectorAll('.reveal');
+        children.forEach(function(child, i) {
+          child.style.transitionDelay = (i * 0.08) + 's';
+          child.classList.add('visible');
+        });
+        observer.unobserve(el);
+      }
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+  reveals.forEach(function(el) { observer.observe(el); });
+
+  /* ---- Smooth Scroll for anchors ---- */
+  document.querySelectorAll('a[href^="#"]').forEach(function(link) {
+    link.addEventListener('click', function(e) {
+      const target = document.querySelector(this.getAttribute('href'));
+      if (target) {
+        e.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // Close mobile menu if open
+        document.querySelector('.nav-links').classList.remove('open');
+        document.querySelector('.hamburger').classList.remove('active');
+      }
+    });
+  });
+
+  /* ---- Mobile Hamburger ---- */
+  var hamburger = document.querySelector('.hamburger');
+  var navLinks = document.querySelector('.nav-links');
+  hamburger.addEventListener('click', function() {
+    hamburger.classList.toggle('active');
+    navLinks.classList.toggle('open');
+  });
+
+  /* ---- Die Face Randomizer ---- */
+  var dieEl = document.getElementById('die-roller');
+  var tooltip = document.getElementById('die-tooltip');
+  var dieSvg = dieEl.querySelector('svg');
+  var isRolling = false;
+
+  var dieFaces = {
+    1: { pips: [[28, 28]], rule: 'Card 1 — Duel or pass' },
+    2: { pips: [[17, 17], [39, 39]], rule: 'Card 2 — Duel or pass' },
+    3: { pips: [[17, 17], [28, 28], [39, 39]], rule: 'Card 3 — Duel or pass' },
+    4: { pips: [[17, 17], [39, 17], [17, 39], [39, 39]], rule: 'Card 4 — Duel or pass' },
+    5: { pips: [[17, 17], [39, 17], [28, 28], [17, 39], [39, 39]], rule: 'Lose all cards!' },
+    6: { pips: [[17, 14], [39, 14], [17, 28], [39, 28], [17, 42], [39, 42]], rule: 'Group flip-off!' }
+  };
+
+  function drawDie(face) {
+    var data = dieFaces[face];
+    var svg = '<rect x="2" y="2" width="52" height="52" rx="8" fill="#F2EDE4" stroke="#E8E2D9" stroke-width="1"/>';
+    var color = face === 5 ? '#8B3A1A' : face === 6 ? '#E84A3A' : '#C0392B';
+    data.pips.forEach(function(p) {
+      svg += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="5" fill="' + color + '"/>';
+    });
+    dieSvg.innerHTML = svg;
+  }
+
+  dieEl.addEventListener('click', function() {
+    if (isRolling) return;
+    isRolling = true;
+    tooltip.classList.remove('show');
+
+    var count = 0;
+    var interval = setInterval(function() {
+      var face = Math.floor(Math.random() * 6) + 1;
+      drawDie(face);
+      count++;
+      if (count > 10) {
+        clearInterval(interval);
+        var finalFace = Math.floor(Math.random() * 6) + 1;
+        drawDie(finalFace);
+        tooltip.textContent = dieFaces[finalFace].rule;
+        tooltip.classList.add('show');
+        setTimeout(function() { tooltip.classList.remove('show'); }, 3000);
+        isRolling = false;
+      }
+    }, 80);
+  });
+
+  /* ---- Flip-Off Countdown Timer ---- */
+  var timerBtn = document.getElementById('flipoff-timer');
+  var timerRunning = false;
+
+  timerBtn.addEventListener('click', function() {
+    if (timerRunning) return;
+    timerRunning = true;
+    timerBtn.classList.add('counting');
+
+    var steps = ['3...', '2...', '1...', 'FLIP!'];
+    var i = 0;
+
+    timerBtn.textContent = steps[i];
+    var interval = setInterval(function() {
+      i++;
+      if (i < steps.length) {
+        timerBtn.textContent = steps[i];
+      } else {
+        clearInterval(interval);
+        setTimeout(function() {
+          timerBtn.textContent = 'Start Countdown';
+          timerBtn.classList.remove('counting');
+          timerRunning = false;
+        }, 1500);
+      }
+    }, 1000);
+  });
+
+})();
+</script>
+</body>
+</html>
