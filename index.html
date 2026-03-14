@@ -1139,6 +1139,18 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .notify-form button:hover { background: var(--red-bright); }
 
+/* Honeypot — hidden from humans, visible to bots */
+.hp-field {
+  position: absolute;
+  left: -9999px;
+  opacity: 0;
+  height: 0;
+  width: 0;
+  overflow: hidden;
+  pointer-events: none;
+  tab-index: -1;
+}
+
 .notify-msg {
   font-family: var(--font-label);
   font-size: 12px;
@@ -1650,6 +1662,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
       <p class="notify-sub">Sign up. We'll tell you when the game is available. No spam. Just bass.</p>
       <form class="notify-form" id="notify-form">
         <input type="email" name="email" placeholder="YOUR EMAIL" required autocomplete="email">
+        <input type="text" name="website" class="hp-field" tabindex="-1" autocomplete="off" aria-hidden="true">
         <button type="submit">I'm In</button>
       </form>
       <p class="notify-msg" id="notify-msg"></p>
@@ -1674,6 +1687,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 
   <form class="footer-capture" id="footer-form">
     <input type="email" name="email" placeholder="YOUR EMAIL" required autocomplete="email">
+    <input type="text" name="website" class="hp-field" tabindex="-1" autocomplete="off" aria-hidden="true">
     <button type="submit">I'm In</button>
   </form>
   <p class="footer-capture-msg" id="footer-msg"></p>
@@ -1846,12 +1860,26 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   // TODO: Replace this URL with your Google Apps Script web app URL
   // See setup instructions below the script section
   var SHEETS_URL = '';
+  var lastSubmitTime = 0;
 
   function handleEmailSubmit(form, msgEl) {
     return function(e) {
       e.preventDefault();
       var email = form.querySelector('input[type="email"]').value;
       if (!email) return;
+
+      // Honeypot check — bots fill hidden fields
+      var hp = form.querySelector('input[name="website"]');
+      if (hp && hp.value) return;
+
+      // Client-side rate limit — 30s between submissions
+      var now = Date.now();
+      if (now - lastSubmitTime < 30000) {
+        msgEl.textContent = 'Easy there. Try again in a moment.';
+        msgEl.className = msgEl.className.replace(/success|error/g, '').trim() + ' error';
+        return;
+      }
+      lastSubmitTime = now;
 
       var btn = form.querySelector('button');
       var origText = btn.textContent;
@@ -1910,7 +1938,30 @@ GOOGLE SHEETS EMAIL CAPTURE — SETUP INSTRUCTIONS
    function doPost(e) {
      var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Emails');
      var data = JSON.parse(e.postData.contents);
-     sheet.appendRow([data.email, data.timestamp]);
+     var email = (data.email || '').trim().toLowerCase();
+
+     // Validate email format
+     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+       return ContentService.createTextOutput(JSON.stringify({status: 'invalid'}))
+         .setMimeType(ContentService.MimeType.JSON);
+     }
+
+     // Reject disposable/suspicious patterns
+     if (email.length > 254 || email.indexOf('+') !== -1) {
+       return ContentService.createTextOutput(JSON.stringify({status: 'rejected'}))
+         .setMimeType(ContentService.MimeType.JSON);
+     }
+
+     // Check for duplicates
+     var existingEmails = sheet.getRange('A:A').getValues().flat().map(function(v) {
+       return String(v).trim().toLowerCase();
+     });
+     if (existingEmails.indexOf(email) !== -1) {
+       return ContentService.createTextOutput(JSON.stringify({status: 'duplicate'}))
+         .setMimeType(ContentService.MimeType.JSON);
+     }
+
+     sheet.appendRow([email, data.timestamp || new Date().toISOString()]);
      return ContentService.createTextOutput(JSON.stringify({status: 'ok'}))
        .setMimeType(ContentService.MimeType.JSON);
    }
