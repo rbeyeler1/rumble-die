@@ -1856,10 +1856,11 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     }, 1000);
   });
 
-  /* ---- Email Capture → Google Sheets ---- */
-  // TODO: Replace this URL with your Google Apps Script web app URL
-  // See setup instructions below the script section
-  var SHEETS_URL = '';
+  /* ---- Email Capture → Google Forms ---- */
+  // Replace FORM_ID and ENTRY_ID with values from your Google Form
+  // See setup instructions in the HTML comment below the script
+  var FORM_URL = 'https://docs.google.com/forms/d/e/FORM_ID/formResponse';
+  var FORM_ENTRY_ID = 'entry.XXXXX';
   var lastSubmitTime = 0;
 
   function handleEmailSubmit(form, msgEl) {
@@ -1886,22 +1887,14 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
       btn.textContent = '...';
       btn.disabled = true;
 
-      if (!SHEETS_URL) {
-        // No endpoint configured — show success anyway for demo
-        msgEl.textContent = 'Thanks! We\'ll be in touch.';
-        msgEl.className = msgEl.className.replace(/success|error/g, '').trim() + ' success';
-        form.querySelector('input[type="email"]').value = '';
-        btn.textContent = origText;
-        btn.disabled = false;
-        return;
-      }
-
-      fetch(SHEETS_URL, {
+      fetch(FORM_URL, {
         method: 'POST',
         mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email, timestamp: new Date().toISOString() })
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: FORM_ENTRY_ID + '=' + encodeURIComponent(email)
       }).then(function() {
+        // mode: 'no-cors' means we can't read the response status.
+        // If the network request completes, we assume success.
         msgEl.textContent = 'You\'re in. We\'ll be in touch.';
         msgEl.className = msgEl.className.replace(/success|error/g, '').trim() + ' success';
         form.querySelector('input[type="email"]').value = '';
@@ -1928,51 +1921,27 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 
 <!--
 ============================================
-GOOGLE SHEETS EMAIL CAPTURE — SETUP INSTRUCTIONS
+GOOGLE FORMS EMAIL CAPTURE — SETUP INSTRUCTIONS
 ============================================
-1. Create a new Google Sheet (sheets.google.com)
-2. Name the first sheet "Emails" with columns: A="Email", B="Timestamp"
-3. Go to Extensions → Apps Script
-4. Replace the default code with:
+1. Go to https://docs.google.com/forms/ and create a new blank form
+2. Add one question: type "Short answer", label "Email", mark required
+3. On the question, click the three-dot menu → Response validation → Text → Email address
+4. Click the Responses tab → click the Sheets icon to link a spreadsheet
+5. To find your FORM_ID:
+   - The form URL looks like: https://docs.google.com/forms/d/e/FORM_ID/viewform
+   - Copy the FORM_ID portion (long alphanumeric string)
+6. To find your ENTRY_ID:
+   - Preview the form, right-click the email input → Inspect
+   - Look for the name attribute: name="entry.1234567890"
+   - The number after "entry." is your ENTRY_ID
+7. In the script above, replace:
+   - FORM_ID in the FORM_URL variable with your form ID
+   - XXXXX in the FORM_ENTRY_ID variable with your entry ID number
+8. Commit and push to GitHub
 
-   function doPost(e) {
-     var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Emails');
-     var data = JSON.parse(e.postData.contents);
-     var email = (data.email || '').trim().toLowerCase();
-
-     // Validate email format
-     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-       return ContentService.createTextOutput(JSON.stringify({status: 'invalid'}))
-         .setMimeType(ContentService.MimeType.JSON);
-     }
-
-     // Reject disposable/suspicious patterns
-     if (email.length > 254 || email.indexOf('+') !== -1) {
-       return ContentService.createTextOutput(JSON.stringify({status: 'rejected'}))
-         .setMimeType(ContentService.MimeType.JSON);
-     }
-
-     // Check for duplicates
-     var existingEmails = sheet.getRange('A:A').getValues().flat().map(function(v) {
-       return String(v).trim().toLowerCase();
-     });
-     if (existingEmails.indexOf(email) !== -1) {
-       return ContentService.createTextOutput(JSON.stringify({status: 'duplicate'}))
-         .setMimeType(ContentService.MimeType.JSON);
-     }
-
-     sheet.appendRow([email, data.timestamp || new Date().toISOString()]);
-     return ContentService.createTextOutput(JSON.stringify({status: 'ok'}))
-       .setMimeType(ContentService.MimeType.JSON);
-   }
-
-5. Click Deploy → New deployment
-6. Type: Web app
-7. Execute as: Me
-8. Who has access: Anyone
-9. Click Deploy and copy the URL
-10. Paste the URL into the SHEETS_URL variable in the script above
-11. Commit and push to GitHub
+Note: mode 'no-cors' means the browser cannot read the response.
+The fetch resolves as long as there is no network error.
+Google Forms handles email validation, spam protection, and storage.
 ============================================
 -->
 </body>
