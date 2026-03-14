@@ -1285,6 +1285,46 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   line-height: 1.5;
 }
 
+/* ---- Old-School Visitor Counter ---- */
+.visitor-counter {
+  margin-top: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.visitor-counter-label {
+  font-family: var(--font-label);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.visitor-counter-display {
+  display: inline-flex;
+  background: #0a0a0a;
+  border: 1px solid var(--dim);
+  border-radius: 4px;
+  padding: 4px 2px;
+  gap: 2px;
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.6);
+}
+.visitor-counter-display .digit {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 20px;
+  font-weight: bold;
+  color: var(--red-bright);
+  background: #111;
+  border: 1px solid #222;
+  border-radius: 2px;
+  width: 22px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-shadow: 0 0 8px rgba(232, 74, 58, 0.5);
+}
+
 @media (max-width: 768px) {
   .section-wrap { padding: 60px 20px; }
   .setup-grid { grid-template-columns: 1fr; }
@@ -1694,6 +1734,14 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 
   <p class="footer-tagline">The bass decides &middot; Ages 21+ &middot; Play responsibly</p>
   <p class="footer-legal">Rumble Die is intended for adults aged 21 and over. Please drink responsibly.</p>
+
+  <div class="visitor-counter">
+    <span class="visitor-counter-label">Visitors</span>
+    <div class="visitor-counter-display" id="visitor-counter" aria-label="Visitor count">
+      <span class="digit">0</span><span class="digit">0</span><span class="digit">0</span>
+      <span class="digit">0</span><span class="digit">0</span><span class="digit">0</span>
+    </div>
+  </div>
 </footer>
 
 <!-- ============================================
@@ -1915,6 +1963,47 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   var footerForm = document.getElementById('footer-form');
   var footerMsg = document.getElementById('footer-msg');
   footerForm.addEventListener('submit', handleEmailSubmit(footerForm, footerMsg));
+
+  /* ---- Old-School Visitor Counter ---- */
+  var counterEl = document.getElementById('visitor-counter');
+  var COUNTER_KEY = 'rumbledie_visitor_count';
+  var VISITED_KEY = 'rumbledie_visited';
+
+  function renderCount(num) {
+    var str = String(num);
+    while (str.length < 6) str = '0' + str;
+    var digits = counterEl.querySelectorAll('.digit');
+    for (var i = 0; i < digits.length; i++) {
+      digits[i].textContent = str[i];
+    }
+  }
+
+  function incrementAndRender() {
+    var hasVisited = sessionStorage.getItem(VISITED_KEY);
+    var count = parseInt(localStorage.getItem(COUNTER_KEY), 10) || 0;
+    if (!hasVisited) {
+      count++;
+      localStorage.setItem(COUNTER_KEY, count);
+      sessionStorage.setItem(VISITED_KEY, '1');
+    }
+    renderCount(count);
+  }
+
+  // Try the free CounterAPI for a global count; fall back to localStorage
+  var counterNamespace = 'rumbledie-com';
+  var counterKey = 'visits';
+  fetch('https://api.counterapi.dev/v1/' + counterNamespace + '/' + counterKey + '/up')
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (data && typeof data.count === 'number') {
+        renderCount(data.count);
+      } else {
+        incrementAndRender();
+      }
+    })
+    .catch(function() {
+      incrementAndRender();
+    });
 
 })();
 </script>
